@@ -7,7 +7,26 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; color: #333; margin-top: 60px; }
+        
+        /* 常に表示されるステータスバー */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 1000;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .status-item { text-align: center; font-size: 0.9em; }
+        .status-value { color: #007aff; font-size: 1.1em; display: block; }
+
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         #q-number { color: #666; font-size: 0.8em; }
@@ -31,6 +50,12 @@
     </style>
 </head>
 <body>
+
+<div class="status-bar" id="live-status-bar">
+    <div class="status-item">進捗<span id="live-progress" class="status-value">0 / 0</span></div>
+    <div class="status-item">正解数<span id="live-correct" class="status-value">0</span></div>
+    <div class="status-item">正答率<span id="live-rate" class="status-value">0%</span></div>
+</div>
 
 <div class="card" id="main-card">
     <div id="quiz-screen">
@@ -65,7 +90,7 @@
 
 <script>
     const rawData = [
- {
+{
             q: "発破の種類に関する記述のうち適切でないものは次のうちどれか",
             a: ["トンネル掘進発破は、トンネルを掘進するため、初めに切羽の中心付近に適当な大きさの空洞を作る発破（払い発破）を行い、次にこの空洞を自由面として利用した発破（心抜発破）を行うものをいう。", "盤下げ発破は、主に建築工事、道路工事、宅地造成工事などで、平面上の岩盤を一定の深さまで掘り下げるために行う発破で、千鳥状に穿孔し、斉発発破を行う場合が多い。", "ベンチ発破は、階段状に掘削面を作って行う発破で、山砂利の採掘、ダム工事の不良岩掘削などに用いられる。", "水中発破には、穿孔発破、貼付け発破などがあり、使用する爆薬は水深に応じた耐水圧性及び十分な殉爆性を有する必要がある。", "小割発破の穿孔法の場合、概ね、玉石等の直径が1～1.5mであれば、1孔で十分であり、それ以上の大型玉石では2孔又は3孔の穿孔が必要となる。"],
          },
@@ -868,10 +893,11 @@
     ];
 
     let quizSet = [];
-    let wrongQuestions = []; // 間違えた問題を保存する配列
+    let wrongQuestions = [];
     let currentIdx = 0;
     let isAnswered = false;
     let correctCount = 0;
+    let answeredCount = 0; // 解答済みの数（リアルタイム計算用）
     let isReviewMode = false;
 
     const shuffle = (array) => {
@@ -882,10 +908,18 @@
         return array;
     };
 
+    function updateLiveStatus() {
+        document.getElementById('live-progress').innerText = `${currentIdx + 1} / ${quizSet.length}`;
+        document.getElementById('live-correct').innerText = correctCount;
+        const rate = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
+        document.getElementById('live-rate').innerText = `${rate}%`;
+    }
+
     function initQuiz() {
         quizSet = shuffle([...rawData]);
         wrongQuestions = [];
         correctCount = 0;
+        answeredCount = 0;
         isReviewMode = false;
         startCommon();
     }
@@ -894,6 +928,7 @@
         quizSet = shuffle([...wrongQuestions]);
         wrongQuestions = [];
         correctCount = 0;
+        answeredCount = 0;
         isReviewMode = true;
         startCommon();
     }
@@ -902,6 +937,7 @@
         currentIdx = 0;
         document.getElementById('quiz-screen').style.display = 'block';
         document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('live-status-bar').style.display = 'flex';
         document.getElementById('mode-notice').style.display = isReviewMode ? 'block' : 'none';
         loadQuestion();
     }
@@ -917,6 +953,8 @@
         document.getElementById('next-btn').style.display = 'none';
         document.getElementById('quit-btn').style.display = 'none';
 
+        updateLiveStatus();
+
         const shuffledOptions = shuffle([...data.a]);
         shuffledOptions.forEach((text) => {
             const btn = document.createElement('button');
@@ -930,6 +968,7 @@
     function checkAnswer(selectedBtn, selectedText, correctText) {
         if (isAnswered) return;
         isAnswered = true;
+        answeredCount++;
         const allButtons = document.querySelectorAll('.option');
         allButtons.forEach(btn => { if (btn.innerText === correctText) btn.classList.add('correct-ans'); });
         
@@ -941,8 +980,10 @@
             selectedBtn.classList.add('wrong-ans');
             document.getElementById('result-text').innerText = "❌ 不正解";
             document.getElementById('result-text').style.color = "#c62828";
-            wrongQuestions.push(quizSet[currentIdx]); // 間違えた問題を保存
+            wrongQuestions.push(quizSet[currentIdx]);
         }
+        
+        updateLiveStatus(); // 解答直後に数値を更新
         document.getElementById('next-btn').style.display = 'block';
         document.getElementById('quit-btn').style.display = 'block';
     }
@@ -955,18 +996,17 @@
 
     function showResult(isInterrupted) {
         document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('live-status-bar').style.display = 'none'; // 結果画面ではバーを隠す
         document.getElementById('result-screen').style.display = 'block';
         
         document.getElementById('result-title').innerText = isInterrupted ? "中断スコア" : "結果発表";
         
-        const answeredSoFar = isAnswered ? currentIdx + 1 : currentIdx;
-        const rate = answeredSoFar > 0 ? Math.round((correctCount / answeredSoFar) * 100) : 0;
+        const rate = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
         
         document.getElementById('correct-rate').innerText = rate;
-        document.getElementById('answered-count').innerText = answeredSoFar;
+        document.getElementById('answered-count').innerText = answeredCount;
         document.getElementById('correct-count').innerText = correctCount;
         
-        // 復習ボタンの表示制御
         const reviewArea = document.getElementById('review-area');
         if (wrongQuestions.length > 0) {
             reviewArea.style.display = 'block';
@@ -982,7 +1022,6 @@
         const fullPrompt = `以下の問題を詳しく解説してください。\n\n【問題】\n${qText}\n\n【選択肢】\n${options}`;
         navigator.clipboard.writeText(fullPrompt).then(() => {
             const btn = document.querySelector('.copy-btn');
-            const originalText = btn.innerText;
             btn.innerText = '完了！';
             setTimeout(() => { btn.innerText = originalText; }, 2000);
         });
