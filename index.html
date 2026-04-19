@@ -1016,17 +1016,24 @@
         }
     }
 
-    function copyEverything() {
+function copyEverything() {
+        const btn = document.querySelector('.copy-btn');
+        const originalText = btn.innerText; // ここで現在のテキスト（AI質問用にコピー）を保存
+        
         const qText = document.getElementById('question-text').innerText;
         const options = Array.from(document.querySelectorAll('.option')).map((btn, i) => `${i + 1}. ${btn.innerText}`).join('\n');
         const fullPrompt = `以下の問題を詳しく解説してください。\n\n【問題】\n${qText}\n\n【選択肢】\n${options}`;
+        
         navigator.clipboard.writeText(fullPrompt).then(() => {
-            const btn = document.querySelector('.copy-btn');
             btn.innerText = '完了！';
-            setTimeout(() => { btn.innerText = originalText; }, 2000);
+            // 2秒後に元のテキストに戻す
+            setTimeout(() => { 
+                btn.innerText = originalText; 
+            }, 2000);
+        }).catch(err => {
+            console.error('コピーに失敗しました', err);
         });
     }
-
     initQuiz();
 </script>
 </body>
